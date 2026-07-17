@@ -25,6 +25,7 @@ export default async function EditCategoryPage({
           slug: category.slug,
           description: category.description ?? "",
           parentId: category.parentId ?? "",
+          image: category.image ?? "",
         }}
       />
     </div>

@@ -98,6 +98,9 @@ const schema = z.object({
     )
     .optional(),
   // Each variant owns its price + compareAtPrice.
+  // NOTE: variants/options/attributes/images are managed via useState (not
+  // react-hook-form), so they are validated manually in onSubmit rather than
+  // here — otherwise handleSubmit silently fails and the Save button does nothing.
   variants: z
     .array(
       z.object({
@@ -109,7 +112,7 @@ const schema = z.object({
         compareAtPrice: z.coerce.number().min(0).optional(),
       }),
     )
-    .min(1, "At least one variant is required"),
+    .optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -244,6 +247,18 @@ export function ProductForm({
   }
 
   async function onSubmit(values: FormValues) {
+    // Variants are managed via useState, so validate them manually here.
+    if (variants.length === 0) {
+      toast({ title: "Add at least one variant", variant: "destructive" });
+      return;
+    }
+    const invalidVariant = variants.find(
+      (v) => !v.sku.trim() || v.price == null || Number(v.price) < 0,
+    );
+    if (invalidVariant) {
+      toast({ title: "Every variant needs a SKU and a valid price", variant: "destructive" });
+      return;
+    }
     setLoading(true);
     // Prices entered in INR; convert to USD base for storage.
     const payload = {
@@ -266,17 +281,23 @@ export function ProductForm({
         compareAtPrice: v.compareAtPrice != null ? inrToUsd(Number(v.compareAtPrice)) : undefined,
       })),
     };
-    const res = await fetch(id ? `/api/admin/products/${id}` : "/api/admin/products", {
-      method: id ? "PATCH" : "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    setLoading(false);
-    if (res.ok) {
-      toast({ title: id ? "Product updated" : "Product created" });
-      router.push("/admin/products");
-    } else {
-      toast({ title: "Save failed", variant: "destructive" });
+    try {
+      const res = await fetch(id ? `/api/admin/products/${id}` : "/api/admin/products", {
+        method: id ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok) {
+        toast({ title: id ? "Product updated" : "Product created" });
+        router.push("/admin/products");
+        return;
+      }
+      toast({ title: data?.error || "Save failed", variant: "destructive" });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : "Save failed", variant: "destructive" });
+    } finally {
+      setLoading(false);
     }
   }
 
