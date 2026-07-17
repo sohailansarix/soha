@@ -181,26 +181,30 @@ pm2 save && pm2 startup
 
 ### 5.1 Vercel
 
-The repo already includes a `vercel.json` that pins Node 20 and runs
-`prisma migrate deploy && next build` as the build command, plus a
-`postinstall` script that runs `prisma generate`. This avoids the two most
-common Vercel failures: a missing Prisma client at runtime, and an un-migrated
-database at build time.
+The repo already includes a `vercel.json` that runs
+`prisma migrate deploy || true && next build` as the build command (the `|| true`
+means a missing/unreachable DB won't abort the build), plus a `postinstall`
+script that runs `prisma generate`. This avoids the two most common Vercel
+failures: a missing Prisma client at runtime, and a hard build failure when the
+DB isn't reachable during build.
 
 1. Import the repo at vercel.com (framework auto-detected as Next.js).
 2. **Add env vars** from section 2 in the project settings
    (`DATABASE_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `NEXT_PUBLIC_APP_URL`, …).
-   `DATABASE_URL` **must** be set — the build prerenders `/sitemap.xml` and runs
-   `migrate deploy`, both of which need the DB.
+   `DATABASE_URL` **must** be set in **Production AND Preview** environments —
+   the app needs it at runtime, and `migrate deploy` applies migrations when it
+   is present. If it is missing at build time, the build still succeeds but
+   migrations are skipped (you must apply them manually — see step 6).
 3. **Postgres:** use Vercel Postgres, Neon, Supabase, or any hosted PG. Set
    `DATABASE_URL` to it.
-4. **Node version:** pinned to `20.x` via `vercel.json` (`engines.node` also
-   requires `>=20`).
+4. **Node version:** `engines.node` requires `>=20` (Vercel auto-selects a
+   compatible 20.x/22.x release).
 5. Deploy. `NEXT_PUBLIC_*` vars are inlined at build — redeploy after changing.
-6. After the first deploy, confirm migrations applied (check build logs for
-   "All migrations have been successfully applied"). If you ever need to apply
-   migrations manually: `npx prisma migrate deploy` against the production
-   `DATABASE_URL`.
+6. **Migrations:** if `DATABASE_URL` was set before the build, migrations apply
+   automatically (check build logs for "All migrations have been successfully
+   applied"). If it was NOT set, apply them manually after adding the var:
+   `npx prisma migrate deploy` against the production `DATABASE_URL` (run locally
+   or via `vercel env pull` + the command). Then redeploy.
 
 ### 5.2 Render / Railway
 
