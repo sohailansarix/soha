@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -48,6 +48,28 @@ export function PostForm({
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [saveDraft, setSaveDraft] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  async function onCoverSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setUploading(true);
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const res = await fetch("/api/admin/upload", { method: "POST", body });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Upload failed");
+      setValue("coverImage", data.url);
+      toast({ title: "Cover image uploaded" });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : "Upload failed", variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
+  }
   const {
     register,
     handleSubmit,
@@ -116,7 +138,23 @@ export function PostForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="coverImage">Cover image URL</Label>
-          <Input id="coverImage" {...register("coverImage")} />
+          <div className="flex items-center gap-2">
+            <Input id="coverImage" {...register("coverImage")} placeholder="Paste a URL or upload below" />
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={onCoverSelected}
+            />
+            <Button type="button" variant="outline" size="sm" disabled={uploading} onClick={() => fileInputRef.current?.click()}>
+              {uploading ? "Uploading…" : "Upload"}
+            </Button>
+          </div>
+          {watch("coverImage") ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={watch("coverImage")} alt="Cover preview" className="h-24 w-auto rounded border object-cover" />
+          ) : null}
         </div>
         <div className="space-y-2">
           <Label htmlFor="categoryId">Category</Label>

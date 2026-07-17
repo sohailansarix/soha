@@ -78,8 +78,13 @@ export function Header() {
         </Sheet>
 
         {/* Logo */}
-        <Link href="/" className="text-2xl font-bold tracking-tight">
-          {SITE.name}
+        <Link href="/" className="flex items-center gap-2 text-2xl font-bold tracking-tight">
+          {SITE.logo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={SITE.logo} alt={`${SITE.name} logo`} className="h-8 w-auto object-contain" />
+          ) : (
+            SITE.name
+          )}
         </Link>
 
         {/* Desktop nav */}

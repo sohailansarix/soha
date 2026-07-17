@@ -2,6 +2,9 @@ import type { Role } from "@prisma/client";
 
 export const SITE = {
   name: process.env.NEXT_PUBLIC_APP_NAME ?? "SOHA",
+  // Optional site logo URL (e.g. a Cloudinary upload). Falls back to the
+  // text wordmark in the header when not set.
+  logo: process.env.NEXT_PUBLIC_SITE_LOGO || "",
   url: process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
   description:
     "SOHA — a premium, modern shopping experience. Curated products, fast delivery, and elegant design.",

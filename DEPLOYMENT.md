@@ -279,6 +279,24 @@ a URL still works. Uploaded files are stored under the `soha/products` folder in
 your Cloudinary account (max 5 MB each). `res.cloudinary.com` is already allowed
 in `next.config.ts` `images.remotePatterns`.
 
+### Site & brand logos
+- **Brand logos:** the admin brand form has an "Upload" button (same
+  `/api/admin/upload` endpoint) that stores the logo in Cloudinary and sets the
+  brand `logo` URL. A preview is shown after upload.
+- **Site logo (header):** set `NEXT_PUBLIC_SITE_LOGO` to a public image URL
+  (e.g. a Cloudinary upload). When empty, the header shows the text wordmark
+  (`SITE.name`). This is a build-time env var — redeploy after changing it.
+
+### All image-upload surfaces (Cloudinary-enabled)
+Every admin image field supports **both** pasting a URL and uploading a file to
+Cloudinary via `/api/admin/upload`:
+- **Products** — product gallery images (`/admin/products`)
+- **Brands** — brand logo (`/admin/brands`)
+- **Blog posts** — cover image (`/admin/blog`)
+
+Each shows a live preview after upload. All uploaded assets land in the
+`soha/products` Cloudinary folder (max 5 MB per file).
+
 ---
 
 ## 7. Reverse Proxy & HTTPS

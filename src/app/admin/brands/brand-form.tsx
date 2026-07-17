@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -22,7 +22,34 @@ export function BrandForm({ defaultValues, id }: { defaultValues?: Partial<z.inf
   const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const { register, handleSubmit } = useForm<z.infer<typeof schema>>({ resolver: zodResolver(schema), defaultValues: defaultValues as z.infer<typeof schema> });
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const { register, handleSubmit, setValue, watch } = useForm<z.infer<typeof schema>>({
+    resolver: zodResolver(schema),
+    defaultValues: defaultValues as z.infer<typeof schema>,
+  });
+
+  const logo = watch("logo");
+
+  async function onFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setUploading(true);
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const res = await fetch("/api/admin/upload", { method: "POST", body });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Upload failed");
+      setValue("logo", data.url);
+      toast({ title: "Logo uploaded" });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : "Upload failed", variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
+  }
 
   async function onSubmit(values: z.infer<typeof schema>) {
     setLoading(true);
@@ -52,7 +79,23 @@ export function BrandForm({ defaultValues, id }: { defaultValues?: Partial<z.inf
       </div>
       <div className="space-y-2">
         <Label htmlFor="logo">Logo URL</Label>
-        <Input id="logo" {...register("logo")} />
+        <div className="flex items-center gap-2">
+          <Input id="logo" {...register("logo")} placeholder="Paste a URL or upload below" />
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={onFileSelected}
+          />
+          <Button type="button" variant="outline" size="sm" disabled={uploading} onClick={() => fileInputRef.current?.click()}>
+            {uploading ? "Uploading…" : "Upload"}
+          </Button>
+        </div>
+        {logo ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={logo} alt="Brand logo preview" className="h-12 w-auto rounded border object-contain" />
+        ) : null}
       </div>
       <div className="space-y-2">
         <Label htmlFor="description">Description</Label>
