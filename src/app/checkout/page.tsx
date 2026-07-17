@@ -15,7 +15,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/components/ui/use-toast";
 import { useCurrency } from "@/components/currency/currency-provider";
 import { cn } from "@/lib/utils";
-import { DEFAULT_STANDARD_FEE, DEFAULT_TAX_RATE, getDeliveryMethods, type DeliveryMethodDef } from "@/lib/constants";
+import { DEFAULT_STANDARD_FEE, DEFAULT_TAX_RATE, getDeliveryMethods, computeDeliveryFee, type DeliveryMethodDef } from "@/lib/constants";
 
 const STEPS = [
   { id: 1, label: "Shipping", icon: MapPin },
@@ -48,6 +48,10 @@ export default function CheckoutPage() {
   const [couponMsg, setCouponMsg] = React.useState<{ type: "ok" | "err"; text: string } | null>(null);
   const [validating, setValidating] = React.useState(false);
   const [productShipping, setProductShipping] = React.useState<number | null>(null);
+  // Per-product shipping lines (for surcharge-aware fee calc).
+  const [shippingLines, setShippingLines] = React.useState<
+    { shippingFee: number | null; freeShippingOver: number | null; price: number; quantity: number }[]
+  >([]);
   const [methods, setMethods] = React.useState<DeliveryMethodDef[]>(
     getDeliveryMethods({ standardShippingFee: DEFAULT_STANDARD_FEE, expressShippingFee: 0, sameDayShippingFee: 0, taxRate: DEFAULT_TAX_RATE }),
   );
@@ -93,6 +97,7 @@ export default function CheckoutPage() {
         );
         let total = 0;
         let hasProductShipping = false;
+        const lines: { shippingFee: number | null; freeShippingOver: number | null; price: number; quantity: number }[] = [];
         for (const item of items) {
           const p = map.get(item.productId);
           if (p?.shippingFee != null) {
@@ -102,19 +107,25 @@ export default function CheckoutPage() {
             if (freeOver == null || lineSubtotal < freeOver) {
               total += Number(p.shippingFee) * item.quantity;
             }
+            lines.push({ shippingFee: p.shippingFee, freeShippingOver: p.freeShippingOver, price: item.price, quantity: item.quantity });
           }
         }
         setProductShipping(hasProductShipping ? total : null);
+        setShippingLines(lines);
       })
       .catch(() => setProductShipping(null));
   }, [items]);
 
   const deliveryFee = methods.find((d) => d.id === delivery)!.fee;
-  // Prefer product-specific shipping (matching the cart) when any product
-  // defines its own charge; otherwise fall back to the flat delivery fee for
-  // the chosen method. No site-wide free-shipping threshold exists.
+  // When products define their own shipping, the base charge is product-
+  // specific and Express/Same Day add their setting-based surcharge on top.
+  // Otherwise the flat fee for the chosen method applies.
   const shipping =
-    productShipping != null ? productShipping : subtotal === 0 ? 0 : deliveryFee;
+    productShipping != null
+      ? computeDeliveryFee(delivery, methods, shippingLines)
+      : subtotal === 0
+        ? 0
+        : deliveryFee;
   const discount = appliedCoupon?.discount ?? 0;
   const tax = (subtotal - discount) * taxRate;
   const total = subtotal - discount + shipping + tax;
@@ -280,10 +291,13 @@ export default function CheckoutPage() {
                 <CardContent>
                   <RadioGroup value={delivery} onValueChange={(v) => setDelivery(v as typeof delivery)}>
                     {methods.map((d) => {
-                      // When products define their own shipping, the real charge
-                      // is product-specific (shown in the summary). Otherwise the
-                      // flat fee for this method applies.
-                      const fee = productShipping != null ? productShipping : d.fee;
+                      // When products define their own shipping, the charge is
+                      // product-specific plus this method's surcharge; otherwise
+                      // the flat fee for this method applies.
+                      const fee =
+                        productShipping != null
+                          ? computeDeliveryFee(d.id, methods, shippingLines)
+                          : d.fee;
                       return (
                         <label
                           key={d.id}

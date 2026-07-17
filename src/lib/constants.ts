@@ -96,3 +96,50 @@ export function getDeliveryMethods(s: StoreSettings): DeliveryMethodDef[] {
     { id: "SAME_DAY", label: "Same Day", eta: "Today", fee: s.sameDayShippingFee },
   ];
 }
+
+export interface ProductShippingLine {
+  shippingFee: number | null;
+  freeShippingOver: number | null;
+  price: number;
+  quantity: number;
+}
+
+/**
+ * Compute the delivery charge for a chosen method.
+ *
+ * - When NO product defines its own shipping fee, the flat fee for the chosen
+ *   method (from store settings) applies.
+ * - When products DO define their own shipping, the Standard charge is the sum
+ *   of product-specific fees (each free once its line subtotal reaches that
+ *   product's `freeShippingOver`). Express and Same Day are independent flat
+ *   fees from store settings — they are NOT increased by the standard/product
+ *   base, so each method shows exactly its own configured price.
+ */
+export function computeDeliveryFee(
+  method: DeliveryMethodDef["id"],
+  methods: DeliveryMethodDef[],
+  lines: ProductShippingLine[],
+): number {
+  const methodFee = methods.find((m) => m.id === method)?.fee ?? 0;
+
+  const productLines = lines.filter((l) => l.shippingFee != null);
+  if (productLines.length === 0) {
+    return methodFee;
+  }
+
+  // Standard carries the product-specific base; Express/Same Day are their own
+  // flat fees and are not stacked on top of the standard base.
+  if (method !== "STANDARD") {
+    return methodFee;
+  }
+
+  let base = 0;
+  for (const l of productLines) {
+    const lineSubtotal = l.price * l.quantity;
+    const freeOver = l.freeShippingOver != null ? Number(l.freeShippingOver) : null;
+    if (freeOver == null || lineSubtotal < freeOver) {
+      base += Number(l.shippingFee) * l.quantity;
+    }
+  }
+  return base;
+}

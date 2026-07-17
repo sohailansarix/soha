@@ -3,7 +3,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { hasRole } from "@/lib/constants";
-import { SETTING_KEYS, clearStoreSettingsCache } from "@/lib/store-settings";
+import { SETTING_KEYS } from "@/lib/store-settings";
 
 export async function GET() {
   const rows = await db.setting.findMany({ where: { key: { in: Object.values(SETTING_KEYS) } } });
@@ -43,6 +43,5 @@ export async function PUT(req: Request) {
       db.setting.upsert({ where: { key }, create: { key, value }, update: { value } }),
     ),
   );
-  clearStoreSettingsCache();
   return NextResponse.json({ ok: true });
 }

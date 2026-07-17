@@ -5,6 +5,9 @@ import { getActiveCurrency } from "@/lib/currency-server";
 
 export const metadata = { title: "Shipping & Delivery" };
 
+// Always render fresh so delivery charges reflect the latest admin settings.
+export const dynamic = "force-dynamic";
+
 export default async function ShippingPage() {
   const currency = await getActiveCurrency();
   const settings = await getStoreSettings();

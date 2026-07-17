@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
-import { getDeliveryMethods } from "@/lib/constants";
+import { getDeliveryMethods, computeDeliveryFee } from "@/lib/constants";
 import { getStoreSettings } from "@/lib/store-settings";
 import { generateOrderNumber } from "@/lib/utils";
 
@@ -54,6 +54,7 @@ export async function POST(req: Request) {
   let subtotal = 0;
   let productShipping = 0;
   let hasProductShipping = false;
+  const shippingLines: { shippingFee: number | null; freeShippingOver: number | null; price: number; quantity: number }[] = [];
   const orderItems: {
     productId: string;
     variantId: string | null;
@@ -91,6 +92,12 @@ export async function POST(req: Request) {
       if (freeOver == null || lineSubtotal < freeOver) {
         productShipping += Number(product.shippingFee) * item.quantity;
       }
+      shippingLines.push({
+        shippingFee: product.shippingFee != null ? Number(product.shippingFee) : null,
+        freeShippingOver: product.freeShippingOver != null ? Number(product.freeShippingOver) : null,
+        price: unitPrice,
+        quantity: item.quantity,
+      });
     }
 
     orderItems.push({
@@ -130,11 +137,14 @@ export async function POST(req: Request) {
   }
 
   const settings = await getStoreSettings();
-  const delivery = getDeliveryMethods(settings).find((d) => d.id === deliveryMethod)!;
-  // Use product-specific delivery charges when any product defines one;
-  // otherwise apply the flat fee for the chosen delivery method. There is
-  // no site-wide free-shipping threshold fallback.
-  const shipping = hasProductShipping ? productShipping : delivery.fee;
+  const methods = getDeliveryMethods(settings);
+  const delivery = methods.find((d) => d.id === deliveryMethod)!;
+  // When products define their own shipping, the base charge is product-
+  // specific and Express/Same Day add their setting-based surcharge on top.
+  // Otherwise the flat fee for the chosen method applies.
+  const shipping = hasProductShipping
+    ? computeDeliveryFee(deliveryMethod, methods, shippingLines)
+    : delivery.fee;
   const tax = (subtotal - discount) * settings.taxRate;
   const total = subtotal - discount + shipping + tax;
 

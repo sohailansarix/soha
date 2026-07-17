@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
+import { CURRENCIES } from "@/lib/currency";
 
 interface SettingsForm {
   standardShippingFee: string;
@@ -13,6 +14,13 @@ interface SettingsForm {
   sameDayShippingFee: string;
   taxRate: string;
 }
+
+// The store displays prices in INR by default. Fees are stored in the DB as a
+// USD base amount (like all other prices), so we convert between INR (what the
+// admin enters/sees) and USD (what we persist) using the INR rate.
+const INR_RATE = CURRENCIES.INR.rate;
+const toInr = (usd: string) => (usd ? String(Number(usd) * INR_RATE) : "");
+const toUsd = (inr: string) => (inr ? String(Number(inr) / INR_RATE) : "0");
 
 export default function AdminSettingsPage() {
   const { toast } = useToast();
@@ -29,7 +37,13 @@ export default function AdminSettingsPage() {
     fetch(`/api/admin/settings`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (data) setForm(data);
+        if (data)
+          setForm({
+            standardShippingFee: toInr(data.standardShippingFee),
+            expressShippingFee: toInr(data.expressShippingFee),
+            sameDayShippingFee: toInr(data.sameDayShippingFee),
+            taxRate: data.taxRate ?? "",
+          });
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -39,10 +53,16 @@ export default function AdminSettingsPage() {
     e.preventDefault();
     setSaving(true);
     try {
+      const payload = {
+        standardShippingFee: toUsd(form.standardShippingFee),
+        expressShippingFee: toUsd(form.expressShippingFee),
+        sameDayShippingFee: toUsd(form.sameDayShippingFee),
+        taxRate: form.taxRate || "0",
+      };
       const res = await fetch(`/api/admin/settings`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error ?? "Could not save settings");
@@ -68,7 +88,7 @@ export default function AdminSettingsPage() {
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="standardShippingFee">Standard shipping fee (USD)</Label>
+              <Label htmlFor="standardShippingFee">Standard shipping fee (₹ INR)</Label>
               <Input
                 id="standardShippingFee"
                 type="number"
@@ -76,11 +96,11 @@ export default function AdminSettingsPage() {
                 min={0}
                 value={form.standardShippingFee}
                 onChange={(e) => setForm({ ...form, standardShippingFee: e.target.value })}
-                placeholder="5.99"
+                placeholder="500"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="expressShippingFee">Express shipping fee (USD)</Label>
+              <Label htmlFor="expressShippingFee">Express shipping fee (₹ INR)</Label>
               <Input
                 id="expressShippingFee"
                 type="number"
@@ -88,11 +108,11 @@ export default function AdminSettingsPage() {
                 min={0}
                 value={form.expressShippingFee}
                 onChange={(e) => setForm({ ...form, expressShippingFee: e.target.value })}
-                placeholder="14.99"
+                placeholder="1250"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="sameDayShippingFee">Same-day shipping fee (USD)</Label>
+              <Label htmlFor="sameDayShippingFee">Same-day shipping fee (₹ INR)</Label>
               <Input
                 id="sameDayShippingFee"
                 type="number"
@@ -100,7 +120,7 @@ export default function AdminSettingsPage() {
                 min={0}
                 value={form.sameDayShippingFee}
                 onChange={(e) => setForm({ ...form, sameDayShippingFee: e.target.value })}
-                placeholder="24.99"
+                placeholder="2087"
               />
             </div>
             <div className="space-y-2">
