@@ -161,16 +161,33 @@ export default async function ProductDetailPage({
                 <AccordionTrigger>Shipping & Returns</AccordionTrigger>
                 <AccordionContent>
                   <div className="space-y-3 text-sm text-muted-foreground">
-                    {product.shippingFee != null ? (
-                      <p>
-                        Delivery charge of {formatMoney(product.shippingFee, currency)}
-                        {product.freeShippingOver != null
-                          ? ` — free when your order subtotal reaches ${formatMoney(product.freeShippingOver, currency)}.`
-                          : "."}
-                      </p>
-                    ) : (
-                      <p>Free standard shipping on orders over {formatMoney(75, currency)}.</p>
-                    )}
+                    {(() => {
+                      const freeOver =
+                        product.freeShippingOver != null ? Number(product.freeShippingOver) : null;
+                      if (product.shippingFee != null) {
+                        return (
+                          <p>
+                            Delivery charge of {formatMoney(product.shippingFee, currency)}
+                            {freeOver != null
+                              ? freeOver > 0
+                                ? ` — free when your order subtotal reaches ${formatMoney(freeOver, currency)}.`
+                                : " — free on this item (no minimum purchase)."
+                              : "."}
+                          </p>
+                        );
+                      }
+                      if (freeOver != null) {
+                        // No product-specific delivery charge, but a free-shipping
+                        // threshold is set for this product.
+                        return freeOver > 0 ? (
+                          <p>Free standard shipping on orders over {formatMoney(freeOver, currency)}.</p>
+                        ) : (
+                          <p>Free standard shipping on this item.</p>
+                        );
+                      }
+                      // No shipping data for this product at all.
+                      return <p>Standard shipping rates apply.</p>;
+                    })()}
                     <p>
                       {product.isReturnable
                         ? product.returnWindow

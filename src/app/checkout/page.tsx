@@ -15,7 +15,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/components/ui/use-toast";
 import { useCurrency } from "@/components/currency/currency-provider";
 import { cn } from "@/lib/utils";
-import { SITE, DELIVERY_METHODS } from "@/lib/constants";
+import { DEFAULT_STANDARD_FEE, DEFAULT_TAX_RATE, getDeliveryMethods, type DeliveryMethodDef } from "@/lib/constants";
 
 const STEPS = [
   { id: 1, label: "Shipping", icon: MapPin },
@@ -47,11 +47,76 @@ export default function CheckoutPage() {
   const [appliedCoupon, setAppliedCoupon] = React.useState<{ code: string; discount: number } | null>(null);
   const [couponMsg, setCouponMsg] = React.useState<{ type: "ok" | "err"; text: string } | null>(null);
   const [validating, setValidating] = React.useState(false);
+  const [productShipping, setProductShipping] = React.useState<number | null>(null);
+  const [methods, setMethods] = React.useState<DeliveryMethodDef[]>(
+    getDeliveryMethods({ standardShippingFee: DEFAULT_STANDARD_FEE, expressShippingFee: 0, sameDayShippingFee: 0, taxRate: DEFAULT_TAX_RATE }),
+  );
+  const [taxRate, setTaxRate] = React.useState(DEFAULT_TAX_RATE);
 
-  const deliveryFee = DELIVERY_METHODS.find((d) => d.id === delivery)!.fee;
-  const shipping = subtotal >= SITE.freeShippingThreshold || subtotal === 0 ? 0 : deliveryFee;
+  React.useEffect(() => {
+    fetch(`/api/settings`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!data) return;
+        const settings = {
+          standardShippingFee: data.standardShippingFee ?? DEFAULT_STANDARD_FEE,
+          expressShippingFee: data.expressShippingFee ?? 0,
+          sameDayShippingFee: data.sameDayShippingFee ?? 0,
+          taxRate: data.taxRate ?? DEFAULT_TAX_RATE,
+        };
+        setMethods(getDeliveryMethods(settings));
+        setTaxRate(settings.taxRate);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Compute shipping the same way the cart does (and the /api/checkout server
+  // calc): sum each product's product-specific shipping fee, applying its
+  // free-shipping threshold per line. Falls back to null when no product
+  // defines its own shipping.
+  React.useEffect(() => {
+    if (items.length === 0) {
+      setProductShipping(null);
+      return;
+    }
+    const ids = items.map((i) => i.productId);
+    fetch(`/api/products/shipping`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!data?.products) return;
+        const map = new Map<string, { id: string; shippingFee: number | null; freeShippingOver: number | null }>(
+          data.products.map((p: { id: string; shippingFee: number | null; freeShippingOver: number | null }) => [p.id, p]),
+        );
+        let total = 0;
+        let hasProductShipping = false;
+        for (const item of items) {
+          const p = map.get(item.productId);
+          if (p?.shippingFee != null) {
+            hasProductShipping = true;
+            const lineSubtotal = item.price * item.quantity;
+            const freeOver = p.freeShippingOver != null ? Number(p.freeShippingOver) : null;
+            if (freeOver == null || lineSubtotal < freeOver) {
+              total += Number(p.shippingFee) * item.quantity;
+            }
+          }
+        }
+        setProductShipping(hasProductShipping ? total : null);
+      })
+      .catch(() => setProductShipping(null));
+  }, [items]);
+
+  const deliveryFee = methods.find((d) => d.id === delivery)!.fee;
+  // Prefer product-specific shipping (matching the cart) when any product
+  // defines its own charge; otherwise fall back to the flat delivery fee for
+  // the chosen method. No site-wide free-shipping threshold exists.
+  const shipping =
+    productShipping != null ? productShipping : subtotal === 0 ? 0 : deliveryFee;
   const discount = appliedCoupon?.discount ?? 0;
-  const tax = (subtotal - discount) * SITE.taxRate;
+  const tax = (subtotal - discount) * taxRate;
   const total = subtotal - discount + shipping + tax;
 
   async function applyCoupon() {
@@ -214,21 +279,27 @@ export default function CheckoutPage() {
                 </CardHeader>
                 <CardContent>
                   <RadioGroup value={delivery} onValueChange={(v) => setDelivery(v as typeof delivery)}>
-                    {DELIVERY_METHODS.map((d) => (
-                      <label
-                        key={d.id}
-                        className="flex cursor-pointer items-center justify-between rounded-lg border p-4 has-[:checked]:border-accent"
-                      >
-                        <div className="flex items-center gap-3">
-                          <RadioGroupItem value={d.id} />
-                          <div>
-                            <div className="font-medium">{d.label}</div>
-                            <div className="text-sm text-muted-foreground">{d.eta}</div>
+                    {methods.map((d) => {
+                      // When products define their own shipping, the real charge
+                      // is product-specific (shown in the summary). Otherwise the
+                      // flat fee for this method applies.
+                      const fee = productShipping != null ? productShipping : d.fee;
+                      return (
+                        <label
+                          key={d.id}
+                          className="flex cursor-pointer items-center justify-between rounded-lg border p-4 has-[:checked]:border-accent"
+                        >
+                          <div className="flex items-center gap-3">
+                            <RadioGroupItem value={d.id} />
+                            <div>
+                              <div className="font-medium">{d.label}</div>
+                              <div className="text-sm text-muted-foreground">{d.eta}</div>
+                            </div>
                           </div>
-                        </div>
-                        <span className="font-medium">{d.fee === 0 ? "Free" : format(d.fee)}</span>
-                      </label>
-                    ))}
+                          <span className="font-medium">{fee === 0 ? "Free" : format(fee)}</span>
+                        </label>
+                      );
+                    })}
                   </RadioGroup>
                   <div className="mt-4 flex gap-2">
                     <Button variant="outline" onClick={() => setStep(1)}>Back</Button>

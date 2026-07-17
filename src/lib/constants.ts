@@ -8,15 +8,16 @@ export const SITE = {
   url: process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
   description:
     "SOHA — a premium, modern shopping experience. Curated products, fast delivery, and elegant design.",
-  // Free shipping threshold (in major currency units)
-  freeShippingThreshold: 75,
-  // Flat standard shipping fee
-  standardShippingFee: 5.99,
-  expressShippingFee: 14.99,
-  sameDayShippingFee: 24.99,
-  // Tax rate applied to taxable amount (e.g. 0.08 = 8%)
-  taxRate: 0.08,
 };
+
+// Default delivery fees (USD) — used as fallback before the DB-backed
+// settings have been saved. Free shipping is entirely product-specific via
+// each product's `freeShippingOver` field — there is no site-wide
+// free-shipping threshold.
+export const DEFAULT_STANDARD_FEE = 5.99;
+export const DEFAULT_EXPRESS_FEE = 14.99;
+export const DEFAULT_SAME_DAY_FEE = 24.99;
+export const DEFAULT_TAX_RATE = 0.08;
 
 export const ROLES: Role[] = ["GUEST", "CUSTOMER", "ADMIN", "SUPER_ADMIN"];
 
@@ -73,8 +74,25 @@ export function roleHasPermission(role: Role | undefined, permission: Permission
   return ROLE_PERMISSIONS[role].includes(permission);
 }
 
-export const DELIVERY_METHODS = [
-  { id: "STANDARD", label: "Standard", eta: "5-7 business days", fee: SITE.standardShippingFee },
-  { id: "EXPRESS", label: "Express", eta: "2-3 business days", fee: SITE.expressShippingFee },
-  { id: "SAME_DAY", label: "Same Day", eta: "Today", fee: SITE.sameDayShippingFee },
-] as const;
+export interface StoreSettings {
+  standardShippingFee: number;
+  expressShippingFee: number;
+  sameDayShippingFee: number;
+  taxRate: number;
+}
+
+export interface DeliveryMethodDef {
+  id: "STANDARD" | "EXPRESS" | "SAME_DAY";
+  label: string;
+  eta: string;
+  fee: number;
+}
+
+/** Build delivery methods from the (DB-backed) store settings. */
+export function getDeliveryMethods(s: StoreSettings): DeliveryMethodDef[] {
+  return [
+    { id: "STANDARD", label: "Standard", eta: "5-7 business days", fee: s.standardShippingFee },
+    { id: "EXPRESS", label: "Express", eta: "2-3 business days", fee: s.expressShippingFee },
+    { id: "SAME_DAY", label: "Same Day", eta: "Today", fee: s.sameDayShippingFee },
+  ];
+}

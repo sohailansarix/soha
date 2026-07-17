@@ -715,3 +715,13 @@ model NewsletterSubscriber {
 
   @@index([email])
 }
+
+// ------------------------------------------------------------
+// Store settings (editable from the admin panel, persisted in DB).
+// Key/value store so new settings can be added without migrations.
+// ------------------------------------------------------------
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}

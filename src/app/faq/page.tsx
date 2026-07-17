@@ -3,7 +3,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 export const metadata = { title: "FAQ" };
 
 const FAQ = [
-  { q: "What are your shipping options?", a: "We offer Standard (5-7 days), Express (2-3 days), and Same-Day delivery. Free shipping is available on orders over $75." },
+  { q: "What are your shipping options?", a: "We offer Standard (5-7 days), Express (2-3 days), and Same-Day delivery. Free standard shipping is available on select products — check each item's details page to see if it qualifies." },
   { q: "What is your return policy?", a: "Unopened items can be returned within 30 days of delivery for a full refund. See our Terms page for details." },
   { q: "How can I track my order?", a: "Once shipped, you'll receive an email with tracking information. You can also view status under your account dashboard." },
   { q: "Which payment methods do you accept?", a: "We accept all major credit cards via Stripe, as well as Cash on Delivery in supported regions." },

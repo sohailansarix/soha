@@ -12,13 +12,26 @@ import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
 import { useCurrency } from "@/components/currency/currency-provider";
 import { cn } from "@/lib/utils";
-import { SITE } from "@/lib/constants";
+import { DEFAULT_STANDARD_FEE, DEFAULT_TAX_RATE } from "@/lib/constants";
 
 export default function CartPage() {
   const { items, saved, updateQty, remove, saveForLater, moveToCart, subtotal, totalSavings, isLoaded } = useCart();
   const { format } = useCurrency();
   const [productShipping, setProductShipping] = React.useState<number | null>(null);
   const [nudgeThreshold, setNudgeThreshold] = React.useState<number | null>(null);
+  const [standardFee, setStandardFee] = React.useState(DEFAULT_STANDARD_FEE);
+  const [taxRate, setTaxRate] = React.useState(DEFAULT_TAX_RATE);
+
+  React.useEffect(() => {
+    fetch(`/api/settings`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!data) return;
+        if (typeof data.standardShippingFee === "number") setStandardFee(data.standardShippingFee);
+        if (typeof data.taxRate === "number") setTaxRate(data.taxRate);
+      })
+      .catch(() => {});
+  }, []);
 
   React.useEffect(() => {
     if (items.length === 0) {
@@ -58,9 +71,9 @@ export default function CartPage() {
           }
         }
         setProductShipping(hasProductShipping ? total : null);
-        // Use the product-specific threshold when applicable; otherwise the
-        // site-wide free-shipping threshold. Null means shipping is already free.
-        setNudgeThreshold(hasProductShipping ? nudge : SITE.freeShippingThreshold);
+        // Only show a free-shipping nudge when a product defines its own
+        // threshold. There is no site-wide fallback threshold.
+        setNudgeThreshold(hasProductShipping ? nudge : null);
       })
       .catch(() => setProductShipping(null));
   }, [items]);
@@ -78,10 +91,10 @@ export default function CartPage() {
   const shipping =
     productShipping != null
       ? productShipping
-      : subtotal >= SITE.freeShippingThreshold || subtotal === 0
+      : subtotal === 0
         ? 0
-        : SITE.standardShippingFee;
-  const tax = subtotal * SITE.taxRate;
+        : standardFee;
+  const tax = subtotal * taxRate;
   const total = subtotal + shipping + tax;
 
   return (
@@ -205,7 +218,7 @@ export default function CartPage() {
                       <span>{shipping === 0 ? "Free" : format(shipping)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Tax ({(SITE.taxRate * 100).toFixed(0)}%)</span>
+                      <span className="text-muted-foreground">Tax ({(taxRate * 100).toFixed(0)}%)</span>
                       <span>{format(tax)}</span>
                     </div>
                     <Separator />

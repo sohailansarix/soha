@@ -592,7 +592,12 @@ export function ProductForm({
               step="0.01"
               min={0}
               value={freeShippingOver}
-              onChange={(e) => setFreeShippingOver(e.target.value)}
+              onChange={(e) => {
+                const v = e.target.value;
+                setFreeShippingOver(v);
+                // Free on this item (0) means there is no delivery charge.
+                if (v.trim() === "0") setShippingFee("0");
+              }}
               placeholder="e.g. 999"
             />
           </div>

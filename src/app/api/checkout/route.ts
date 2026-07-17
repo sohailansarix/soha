@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
-import { SITE, DELIVERY_METHODS } from "@/lib/constants";
+import { getDeliveryMethods } from "@/lib/constants";
+import { getStoreSettings } from "@/lib/store-settings";
 import { generateOrderNumber } from "@/lib/utils";
 
 const itemSchema = z.object({
@@ -128,15 +129,13 @@ export async function POST(req: Request) {
     }
   }
 
-  const delivery = DELIVERY_METHODS.find((d) => d.id === deliveryMethod)!;
+  const settings = await getStoreSettings();
+  const delivery = getDeliveryMethods(settings).find((d) => d.id === deliveryMethod)!;
   // Use product-specific delivery charges when any product defines one;
-  // otherwise fall back to the site-wide free-shipping threshold / fee.
-  const shipping = hasProductShipping
-    ? productShipping
-    : subtotal >= SITE.freeShippingThreshold
-      ? 0
-      : delivery.fee;
-  const tax = (subtotal - discount) * SITE.taxRate;
+  // otherwise apply the flat fee for the chosen delivery method. There is
+  // no site-wide free-shipping threshold fallback.
+  const shipping = hasProductShipping ? productShipping : delivery.fee;
+  const tax = (subtotal - discount) * settings.taxRate;
   const total = subtotal - discount + shipping + tax;
 
   // Create or reuse address

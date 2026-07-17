@@ -6,9 +6,9 @@ export function PromoBanner() {
     <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="grid gap-4 md:grid-cols-2">
         <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-accent to-amber-700 p-8 text-white">
-          <h3 className="text-xl font-bold">Free shipping over $75</h3>
+          <h3 className="text-xl font-bold">Free shipping on select items</h3>
           <p className="mt-2 text-sm text-white/80">
-            Enjoy complimentary standard delivery on every order above the threshold.
+            Free standard shipping is available on eligible products — check each item's details to see if it qualifies.
           </p>
           <Button asChild variant="secondary" className="mt-4">
             <Link href="/products">Start shopping</Link>

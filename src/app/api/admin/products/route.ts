@@ -15,8 +15,16 @@ const schema = z.object({
   isFeatured: z.boolean().optional(),
   isReturnable: z.boolean().optional(),
   returnWindow: z.coerce.number().int().min(0).optional(),
-  shippingFee: z.coerce.number().min(0).optional(),
-  freeShippingOver: z.coerce.number().min(0).optional(),
+  // Empty string / null must become null (not 0). z.coerce.number() would turn
+  // null/"" into 0, which the product page then renders as "free on this item".
+  shippingFee: z.preprocess(
+    (v) => (v === "" || v === null || v === undefined ? null : Number(v)),
+    z.number().min(0).nullable(),
+  ),
+  freeShippingOver: z.preprocess(
+    (v) => (v === "" || v === null || v === undefined ? null : Number(v)),
+    z.number().min(0).nullable(),
+  ),
   // Dynamic option definitions, e.g. [{ name: "Color", values: ["Red","Blue"] }]
   options: z
     .array(
@@ -58,6 +66,9 @@ export async function POST(req: Request) {
   const { attributes, options, variants, ...rest } = parsed.data;
   // Normalize empty brandId to undefined (avoids FK constraint violation).
   rest.brandId = rest.brandId || undefined;
+  // If free shipping is set to 0 (free on this item), the delivery charge
+  // must also be 0 — there is no charge to waive.
+  if (rest.freeShippingOver === 0) rest.shippingFee = 0;
   // Denormalized helper for listing filters/sort.
   const minPrice = Math.min(...variants.map((v) => Number(v.price)));
   const product = await db.product.create({
