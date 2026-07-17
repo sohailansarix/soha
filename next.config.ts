@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   // `pg` uses Node built-ins (dns, fs, net, tls) that must stay external to
   // the server bundle under Turbopack.
-  serverExternalPackages: ["pg", "@prisma/adapter-pg"],
+  serverExternalPackages: ["pg", "@prisma/adapter-pg", "pdfkit"],
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "picsum.photos" },
