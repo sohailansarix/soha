@@ -3,9 +3,11 @@
 import * as React from "react";
 import { Minus, Plus, ShoppingBag, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useCart } from "@/components/cart/cart-context";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
+import { formatMoney } from "@/lib/currency";
 
 interface Variant {
   id: string;
@@ -24,6 +26,7 @@ export function AddToCartPanel({
   variants,
   totalStock,
   image,
+  currency,
 }: {
   productId: string;
   slug: string;
@@ -32,6 +35,7 @@ export function AddToCartPanel({
   variants: Variant[];
   totalStock: number;
   image?: string | null;
+  currency: string;
 }) {
   const { add } = useCart();
   const { toast } = useToast();
@@ -52,6 +56,7 @@ export function AddToCartPanel({
     Object.fromEntries(optionNames.map((n) => [n, (optionValues[n] ?? [])[0] ?? null])),
   );
 
+  // The currently selected variant — matched by the exact selected attributes.
   const matched =
     variants.find((v) =>
       optionNames.every((n) => (optionValues[n]?.length ?? 0) === 0 || v.attributes[n] === selected[n]),
@@ -59,6 +64,8 @@ export function AddToCartPanel({
 
   const stock = matched ? matched.stock : totalStock;
   const unitPrice = matched?.price ? Number(matched.price) : price;
+  const compareAt = matched?.compareAtPrice != null ? Number(matched.compareAtPrice) : null;
+  const discount = compareAt && compareAt > unitPrice ? Math.round((1 - unitPrice / compareAt) * 100) : 0;
   const outOfStock = stock <= 0;
 
   function handleAdd() {
@@ -77,6 +84,17 @@ export function AddToCartPanel({
 
   return (
     <div className="space-y-4">
+      {/* Dynamic price — reads directly from the selected variant */}
+      <div className="flex items-center gap-3">
+        <span className="text-2xl font-semibold">{formatMoney(unitPrice, currency)}</span>
+        {compareAt != null && compareAt > unitPrice && (
+          <span className="text-lg text-muted-foreground line-through">
+            {formatMoney(compareAt, currency)}
+          </span>
+        )}
+        {discount > 0 && <Badge variant="destructive">Save {discount}%</Badge>}
+      </div>
+
       {optionNames.map((name) => {
         const values = optionValues[name] ?? [];
         if (values.length === 0) return null;
@@ -84,21 +102,28 @@ export function AddToCartPanel({
         return (
           <div key={name}>
             <p className="mb-2 text-sm font-medium">
-              {name}: {current}
+              {name}: <span className="text-foreground">{current}</span>
             </p>
             <div className="flex flex-wrap gap-2">
-              {values.map((val) => (
-                <button
-                  key={val}
-                  onClick={() => setSelected((s) => ({ ...s, [name]: val }))}
-                  className={cn(
-                    "min-w-10 rounded-md border-2 px-3 py-1 text-sm transition-colors",
-                    current === val ? "border-accent" : "border-input hover:border-muted-foreground",
-                  )}
-                >
-                  {val}
-                </button>
-              ))}
+              {values.map((val) => {
+                const isActive = current === val;
+                return (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => setSelected((s) => ({ ...s, [name]: val }))}
+                    aria-pressed={isActive}
+                    className={cn(
+                      "min-w-10 rounded-md border-2 px-3 py-1 text-sm font-medium transition-colors",
+                      isActive
+                        ? "border-accent bg-accent text-accent-foreground shadow-sm"
+                        : "border-input bg-background text-foreground hover:border-muted-foreground",
+                    )}
+                  >
+                    {val}
+                  </button>
+                );
+              })}
             </div>
           </div>
         );

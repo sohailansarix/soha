@@ -7,7 +7,6 @@ import { ProductCard, type ProductCardData } from "@/components/product/product-
 import { ProductReviews } from "@/components/product/product-reviews";
 import { AddToCartPanel } from "@/components/product/add-to-cart-panel";
 import { ProductGallery } from "@/components/product/product-gallery";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { JsonLd } from "@/components/seo/json-ld";
@@ -41,12 +40,8 @@ export default async function ProductDetailPage({
   const product = await getProductBySlug(slug);
   if (!product || !product.isActive) notFound();
 
-  // Pricing now lives on variants; use the cheapest variant for display.
+  // Pricing now lives on variants; the cheapest variant seeds the cart default.
   const sortedVariants = [...product.variants].sort((a, b) => Number(a.price) - Number(b.price));
-  const baseVariant = sortedVariants[0];
-  const basePrice = baseVariant ? Number(baseVariant.price) : 0;
-  const baseCompare = baseVariant?.compareAtPrice ? Number(baseVariant.compareAtPrice) : null;
-  const discount = baseCompare ? Math.round((1 - basePrice / baseCompare) * 100) : 0;
 
   const relatedProducts: ProductCardData[] = product.related.map((r) => {
     const rv = [...r.related.variants].sort((a, b) => Number(a.price) - Number(b.price))[0];
@@ -75,7 +70,7 @@ export default async function ProductDetailPage({
     offers: {
       "@type": "Offer",
       priceCurrency: "USD",
-      price: basePrice,
+      price: sortedVariants[0] ? Number(sortedVariants[0].price) : 0,
       availability: totalStock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
       url: `/products/${product.slug}`,
     },
@@ -112,16 +107,6 @@ export default async function ProductDetailPage({
             )}
             <h1 className="mt-1 text-3xl font-bold tracking-tight">{product.name}</h1>
 
-            <div className="mt-3 flex items-center gap-3">
-              <span className="text-2xl font-semibold">{formatMoney(basePrice, currency)}</span>
-              {baseCompare && (
-                <span className="text-lg text-muted-foreground line-through">
-                  {formatMoney(baseCompare, currency)}
-                </span>
-              )}
-              {discount > 0 && <Badge variant="destructive">Save {discount}%</Badge>}
-            </div>
-
             {product.summary && (
               <p className="mt-4 text-muted-foreground">{product.summary}</p>
             )}
@@ -132,7 +117,7 @@ export default async function ProductDetailPage({
               productId={product.id}
               slug={product.slug}
               name={product.name}
-              price={basePrice}
+              price={sortedVariants[0] ? Number(sortedVariants[0].price) : 0}
               variants={product.variants.map((v) => ({
                 id: v.id,
                 sku: v.sku,
@@ -143,6 +128,7 @@ export default async function ProductDetailPage({
               }))}
               totalStock={totalStock}
               image={product.images[0]?.url ?? null}
+              currency={currency}
             />
 
             <Separator className="my-6" />
