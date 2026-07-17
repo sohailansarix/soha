@@ -26,7 +26,7 @@ const STEPS = [
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { items, subtotal, clear } = useCart();
+  const { items, subtotal, totalSavings, clear } = useCart();
   const { toast } = useToast();
   const { format, currency } = useCurrency();
   const [step, setStep] = React.useState(1);
@@ -341,6 +341,12 @@ export default function CheckoutPage() {
                     <span className="text-muted-foreground">Subtotal</span>
                     <span>{format(subtotal)}</span>
                   </div>
+                  {totalSavings > 0 && (
+                    <div className="flex justify-between text-emerald-600">
+                      <span>You saved</span>
+                      <span>-{format(totalSavings)}</span>
+                    </div>
+                  )}
                   {discount > 0 && (
                     <div className="flex justify-between text-emerald-600">
                       <span>Discount{appliedCoupon ? ` (${appliedCoupon.code})` : ""}</span>

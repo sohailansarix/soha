@@ -29,6 +29,7 @@ export interface ProductCardData {
   color?: string | null;
   size?: string | null;
   variantId?: string | null;
+  variantCount?: number;
 }
 
 export function ProductCard({ product }: { product: ProductCardData }) {
@@ -42,14 +43,25 @@ export function ProductCard({ product }: { product: ProductCardData }) {
     ? Math.round((1 - product.price / Number(product.compareAtPrice)) * 100)
     : 0;
 
+  // If the product has more than one variant, force the user to pick options
+  // on the detail page rather than adding a variant-less item. Products with a
+  // single variant (or none) can be quick-added using the cheapest variant.
+  const hasMultipleVariants = (product.variantCount ?? 0) > 1;
+
   function handleAdd(e: React.MouseEvent) {
     e.preventDefault();
+    if (hasMultipleVariants) {
+      // Send the user to the product page to choose size/color/etc.
+      window.location.href = `/products/${product.slug}`;
+      return;
+    }
     add({
       productId: product.id,
       variantId: product.variantId ?? null,
       slug: product.slug,
       name: product.name,
       price: product.price,
+      compareAtPrice: product.compareAtPrice ?? null,
       image: product.image ?? undefined,
       stock: product.stock ?? 99,
       attributes: null,
@@ -123,9 +135,18 @@ export function ProductCard({ product }: { product: ProductCardData }) {
             </span>
           )}
         </div>
-        <Button size="sm" className="w-full" onClick={handleAdd} disabled={(product.stock ?? 0) <= 0}>
+        <Button
+          size="sm"
+          className="w-full"
+          onClick={handleAdd}
+          disabled={(product.stock ?? 0) <= 0}
+        >
           <ShoppingBag className="h-4 w-4" />
-          {(product.stock ?? 0) <= 0 ? "Out of stock" : "Add to cart"}
+          {(product.stock ?? 0) <= 0
+            ? "Out of stock"
+            : hasMultipleVariants
+              ? "Select options"
+              : "Add to cart"}
         </Button>
       </div>
     </Card>

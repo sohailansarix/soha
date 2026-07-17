@@ -76,6 +76,7 @@ export function AddToCartPanel({
       slug,
       name,
       price: unitPrice,
+      compareAtPrice: compareAt,
       image: image ?? undefined,
       stock,
       attributes: matched?.attributes ?? {},

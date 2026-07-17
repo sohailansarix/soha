@@ -88,6 +88,7 @@ export async function getProducts(query: ProductQuery = {}): Promise<{
         category: true,
         brand: true,
         variants: { orderBy: [{ price: "asc" }], take: 1 },
+        _count: { select: { variants: true } },
       },
     }),
     db.product.count({ where }),
@@ -107,6 +108,7 @@ export async function getProducts(query: ProductQuery = {}): Promise<{
       isNewArrival: p.isNewArrival,
       isBestSeller: p.isBestSeller,
       stock: 99,
+      variantCount: p._count.variants,
     };
   });
 

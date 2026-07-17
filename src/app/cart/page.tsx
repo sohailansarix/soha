@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 import { SITE } from "@/lib/constants";
 
 export default function CartPage() {
-  const { items, saved, updateQty, remove, saveForLater, moveToCart, subtotal, isLoaded } = useCart();
+  const { items, saved, updateQty, remove, saveForLater, moveToCart, subtotal, totalSavings, isLoaded } = useCart();
   const { format } = useCurrency();
   const [productShipping, setProductShipping] = React.useState<number | null>(null);
   const [nudgeThreshold, setNudgeThreshold] = React.useState<number | null>(null);
@@ -112,7 +112,14 @@ export default function CartPage() {
                       <Link href={`/products/${item.slug}`} className="font-medium hover:underline">
                         {item.name}
                       </Link>
-                      <span className="font-semibold">{format(item.price * item.quantity)}</span>
+                      <div className="flex items-center gap-2">
+                        {item.compareAtPrice != null && item.compareAtPrice > item.price && (
+                          <span className="text-sm text-muted-foreground line-through">
+                            {format(item.compareAtPrice * item.quantity)}
+                          </span>
+                        )}
+                        <span className="font-semibold">{format(item.price * item.quantity)}</span>
+                      </div>
                     </div>
                     {(item.attributes && Object.keys(item.attributes).length > 0) && (
                       <p className="text-sm text-muted-foreground">
@@ -187,6 +194,12 @@ export default function CartPage() {
                       <span className="text-muted-foreground">Subtotal</span>
                       <span>{format(subtotal)}</span>
                     </div>
+                    {totalSavings > 0 && (
+                      <div className="flex justify-between text-green-600">
+                        <span>You saved</span>
+                        <span>-{format(totalSavings)}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Shipping</span>
                       <span>{shipping === 0 ? "Free" : format(shipping)}</span>

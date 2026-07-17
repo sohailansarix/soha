@@ -9,6 +9,7 @@ export interface CartLine {
   slug: string;
   name: string;
   price: number;
+  compareAtPrice?: number | null;
   image?: string;
   quantity: number;
   stock: number;
@@ -21,6 +22,7 @@ interface CartContextValue {
   saved: CartLine[];
   count: number;
   subtotal: number;
+  totalSavings: number;
   add: (line: Omit<CartLine, "quantity">, qty?: number) => void;
   updateQty: (productId: string, variantId: string | null | undefined, qty: number) => void;
   remove: (productId: string, variantId: string | null | undefined) => void;
@@ -124,12 +126,18 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const saved = items.filter((i) => i.savedForLater);
   const count = active.reduce((s, i) => s + i.quantity, 0);
   const subtotal = active.reduce((s, i) => s + i.price * i.quantity, 0);
+  // Total savings across all active items: (compareAt - price) * qty.
+  const totalSavings = active.reduce((s, i) => {
+    const cmp = i.compareAtPrice != null ? Number(i.compareAtPrice) : null;
+    return cmp != null && cmp > i.price ? s + (cmp - i.price) * i.quantity : s;
+  }, 0);
 
   const value: CartContextValue = {
     items: active,
     saved,
     count,
     subtotal,
+    totalSavings,
     add,
     updateQty,
     remove,
