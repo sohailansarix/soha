@@ -1,0 +1,22 @@
+// Lightweight in-memory rate limiter (suitable for single-instance deployments).
+// For multi-instance, use Redis or a similar shared store.
+
+const buckets = new Map<string, { count: number; resetAt: number }>();
+
+export function rateLimit(key: string, limit: number, windowMs: number): boolean {
+  const now = Date.now();
+  const bucket = buckets.get(key);
+
+  if (!bucket || bucket.resetAt < now) {
+    buckets.set(key, { count: 1, resetAt: now + windowMs });
+    return true;
+  }
+
+  if (bucket.count >= limit) return false;
+  bucket.count += 1;
+  return true;
+}
+
+export function rateLimitResponse(): Response {
+  return new Response("Too many requests", { status: 429 });
+}
