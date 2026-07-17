@@ -1,7 +1,23 @@
 import NextAuth from "next-auth";
+import Credentials from "next-auth/providers/credentials";
 import { authConfig } from "@/lib/auth.config";
 
-const { auth } = NextAuth(authConfig);
+// Middleware runs on the Edge runtime, so it must stay free of Prisma / Node-only
+// modules. We reuse the edge-safe `authConfig` (no DB imports) and add a
+// Credentials provider definition with NO `authorize` body — the actual DB-backed
+// authorize lives in `auth.ts` (Node runtime). This keeps the provider metadata
+// available for token parsing without pulling Prisma into the edge bundle.
+const { auth } = NextAuth({
+  ...authConfig,
+  providers: [
+    Credentials({
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" },
+      },
+    }),
+  ],
+});
 
 export { auth as middleware };
 

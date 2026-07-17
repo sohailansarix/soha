@@ -181,21 +181,26 @@ pm2 save && pm2 startup
 
 ### 5.1 Vercel
 
-1. Import the repo at vercel.com.
-2. **Build command:** `npm run build` (override if needed).
-3. **Install command:** `npm ci`.
-4. **Add env vars** from section 2 in the project settings
+The repo already includes a `vercel.json` that pins Node 20 and runs
+`prisma migrate deploy && next build` as the build command, plus a
+`postinstall` script that runs `prisma generate`. This avoids the two most
+common Vercel failures: a missing Prisma client at runtime, and an un-migrated
+database at build time.
+
+1. Import the repo at vercel.com (framework auto-detected as Next.js).
+2. **Add env vars** from section 2 in the project settings
    (`DATABASE_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `NEXT_PUBLIC_APP_URL`, …).
-5. **Postgres:** use Vercel Postgres, Neon, Supabase, or any hosted PG. Set
+   `DATABASE_URL` **must** be set — the build prerenders `/sitemap.xml` and runs
+   `migrate deploy`, both of which need the DB.
+3. **Postgres:** use Vercel Postgres, Neon, Supabase, or any hosted PG. Set
    `DATABASE_URL` to it.
-6. **Migrations:** Vercel does **not** run `prisma migrate deploy` for you. Add a
-   build step or run locally / in a GitHub Action:
-   - Easiest: run `npx prisma migrate deploy` from your machine against the
-     production `DATABASE_URL` after each schema change.
-   - Or add it to the Vercel build command:
-     `"build": "prisma migrate deploy && next build"` (requires `DATABASE_URL`
-     available at build time).
-7. Deploy. `NEXT_PUBLIC_*` vars are inlined at build — redeploy after changing.
+4. **Node version:** pinned to `20.x` via `vercel.json` (`engines.node` also
+   requires `>=20`).
+5. Deploy. `NEXT_PUBLIC_*` vars are inlined at build — redeploy after changing.
+6. After the first deploy, confirm migrations applied (check build logs for
+   "All migrations have been successfully applied"). If you ever need to apply
+   migrations manually: `npx prisma migrate deploy` against the production
+   `DATABASE_URL`.
 
 ### 5.2 Render / Railway
 

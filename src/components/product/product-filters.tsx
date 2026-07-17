@@ -122,7 +122,7 @@ export function ProductFilters({ categories, brands }: { categories: Option[]; b
           <AccordionContent>
             <label className="flex cursor-pointer items-center gap-2 text-sm">
               <Checkbox
-                checked={new URLSearchParams(window.location.search).get("onSale") === "1"}
+                checked={searchParams.get("onSale") === "1"}
                 onCheckedChange={(c) => applyParams({ onSale: c ? "1" : null })}
               />
               On sale
