@@ -238,6 +238,47 @@ npx prisma studio
 > against a Postgres service container, so migrations are applied automatically
 > on every build.
 
+### 6.1 Seeding on Vercel / managed Postgres
+
+Vercel does **not** run the seed for you, and `tsx` is not on the global PATH, so
+seed from your local machine against the production `DATABASE_URL`:
+
+```bash
+# Point at the hosted DB and seed (creates admin@soha.dev / admin123,
+# customer@soha.dev / customer123, and sample data)
+env DATABASE_URL="<your-production-database-url>" npx tsx prisma/seed.ts
+```
+
+This creates the `SUPER_ADMIN` account used to access `/admin`. Re-run any time
+you need fresh sample data (it uses `upsert`, so it is safe to repeat).
+
+**Default credentials after seeding:**
+| Role | Email | Password |
+|------|-------|----------|
+| SUPER_ADMIN | `admin@soha.dev` | `admin123` |
+| CUSTOMER | `customer@soha.dev` | `customer123` |
+
+> Change these passwords in production.
+
+---
+
+## 6.2 Product image uploads (Cloudinary)
+
+The admin product form supports **both** pasting an image URL **and** uploading a
+file directly. Uploads go through `/api/admin/upload` → Cloudinary and the
+returned URL is stored in the `ProductImage` table (same as a pasted URL).
+
+**Required env vars (Vercel Production + Preview, and local `.env`):**
+```
+CLOUDINARY_CLOUD_NAME=   # from https://cloudinary.com/console
+CLOUDINARY_API_KEY=
+CLOUDINARY_API_SECRET=
+```
+If these are missing, the "Upload" button returns a clear 500 error but pasting
+a URL still works. Uploaded files are stored under the `soha/products` folder in
+your Cloudinary account (max 5 MB each). `res.cloudinary.com` is already allowed
+in `next.config.ts` `images.remotePatterns`.
+
 ---
 
 ## 7. Reverse Proxy & HTTPS

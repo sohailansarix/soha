@@ -6,6 +6,9 @@ import type { NextAuthConfig } from "next-auth";
 // provider. The DB-backed `authorize` and JWT role-refresh live in `auth.ts`
 // (Node runtime only).
 export const authConfig = {
+  // Required behind Vercel's reverse proxy so Auth.js trusts the forwarded host
+  // and sets the secure session cookie correctly.
+  trustHost: true,
   session: { strategy: "jwt" },
   pages: {
     signIn: "/auth/login",

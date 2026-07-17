@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -144,6 +145,8 @@ export function ProductForm({
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [images, setImages] = useState<ImageInput[]>(initialImages ?? []);
+  const [uploadingIdx, setUploadingIdx] = useState<number | null>(null);
+  const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [attributes, setAttributes] = useState<AttributeInput[]>(initialAttributes ?? []);
   const [options, setOptions] = useState<OptionInput[]>(initialOptions ?? []);
   const [variants, setVariants] = useState<VariantInput[]>(initialVariants ?? []);
@@ -173,6 +176,24 @@ export function ProductForm({
   }
   function removeImage(index: number) {
     setImages((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  // Upload a selected file to Cloudinary via the admin upload route and store
+  // the returned URL in the image row. Falls back to pasting a URL manually.
+  async function handleUpload(index: number, file: File) {
+    setUploadingIdx(index);
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const res = await fetch("/api/admin/upload", { method: "POST", body });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Upload failed");
+      setImages((prev) => prev.map((img, i) => (i === index ? { ...img, url: data.url } : img)));
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : "Upload failed", variant: "destructive" });
+    } finally {
+      setUploadingIdx(null);
+    }
   }
 
   function updateAttribute(index: number, field: keyof AttributeInput, value: string) {
@@ -310,7 +331,7 @@ export function ProductForm({
           <Button type="button" variant="outline" size="sm" onClick={addImage}>Add image</Button>
         </div>
         {images.length === 0 && (
-          <p className="text-sm text-muted-foreground">No images added. Add image URLs (e.g. from picsum.photos or your CDN).</p>
+          <p className="text-sm text-muted-foreground">No images added. Paste an image URL or upload a file (saved to Cloudinary).</p>
         )}
         <div className="space-y-2">
           {images.map((img, idx) => (
@@ -326,6 +347,28 @@ export function ProductForm({
                 onChange={(e) => updateImage(idx, "alt", e.target.value)}
                 className="w-48"
               />
+              <input
+                ref={(el) => {
+                  fileInputRefs.current[idx] = el;
+                }}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleUpload(idx, f);
+                  e.target.value = "";
+                }}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={uploadingIdx === idx}
+                onClick={() => fileInputRefs.current[idx]?.click()}
+              >
+                {uploadingIdx === idx ? "Uploading…" : "Upload"}
+              </Button>
               <Button type="button" variant="ghost" size="sm" onClick={() => removeImage(idx)} aria-label="Remove image">
                 ✕
               </Button>
