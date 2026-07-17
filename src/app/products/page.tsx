@@ -30,9 +30,12 @@ export default async function ProductsPage({
 }) {
   const sp = await searchParams;
 
-  const [categories, brands] = await Promise.all([
+  const [categories, brands, activeCategory] = await Promise.all([
     db.category.findMany({ orderBy: { name: "asc" } }),
     db.brand.findMany({ orderBy: { name: "asc" } }),
+    sp.category
+      ? db.category.findFirst({ where: { slug: sp.category } })
+      : Promise.resolve(null),
   ]);
 
   const result = await getProducts({
@@ -50,14 +53,27 @@ export default async function ProductsPage({
   return (
     <SiteLayout>
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold tracking-tight">
-            {sp.q ? `Results for “${sp.q}”` : "All Products"}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {result.total} product{result.total === 1 ? "" : "s"} found
-          </p>
-        </div>
+        {activeCategory?.image ? (
+          <div className="relative mb-6 overflow-hidden rounded-xl">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={activeCategory.image} alt={activeCategory.name} className="h-40 w-full object-cover sm:h-52" />
+            <div className="absolute inset-0 flex flex-col items-start justify-end bg-gradient-to-t from-black/70 to-transparent p-6">
+              <h1 className="text-3xl font-bold tracking-tight text-white">{activeCategory.name}</h1>
+              <p className="mt-1 text-sm text-white/80">
+                {result.total} product{result.total === 1 ? "" : "s"} found
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="mb-6">
+            <h1 className="text-3xl font-bold tracking-tight">
+              {sp.q ? `Results for “${sp.q}”` : "All Products"}
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {result.total} product{result.total === 1 ? "" : "s"} found
+            </p>
+          </div>
+        )}
 
         <div className="grid gap-8 lg:grid-cols-[260px_1fr]">
           <aside className="hidden lg:block">

@@ -9,6 +9,7 @@ const schema = z.object({
   slug: z.string().min(1),
   description: z.string().optional(),
   parentId: z.string().optional(),
+  image: z.string().url().optional().or(z.literal("")),
 });
 
 export async function POST(req: Request) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -16,6 +16,7 @@ const schema = z.object({
   slug: z.string().min(1),
   description: z.string().optional(),
   parentId: z.string().optional(),
+  image: z.string().url().optional().or(z.literal("")),
 });
 
 export function CategoryForm({
@@ -30,14 +31,45 @@ export function CategoryForm({
   const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const { register, handleSubmit } = useForm<z.infer<typeof schema>>({ resolver: zodResolver(schema), defaultValues: defaultValues as z.infer<typeof schema> });
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const { register, handleSubmit, setValue, watch } = useForm<z.infer<typeof schema>>({
+    resolver: zodResolver(schema),
+    defaultValues: defaultValues as z.infer<typeof schema>,
+  });
+
+  const image = watch("image");
+
+  async function onFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setUploading(true);
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const res = await fetch("/api/admin/upload", { method: "POST", body });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Upload failed");
+      setValue("image", data.url);
+      toast({ title: "Image uploaded" });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : "Upload failed", variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
+  }
 
   async function onSubmit(values: z.infer<typeof schema>) {
     setLoading(true);
     const res = await fetch(id ? `/api/admin/categories/${id}` : "/api/admin/categories", {
       method: id ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...values, parentId: values.parentId || undefined }),
+      body: JSON.stringify({
+        ...values,
+        parentId: values.parentId || undefined,
+        image: values.image || undefined,
+      }),
     });
     setLoading(false);
     if (res.ok) {
@@ -70,6 +102,26 @@ export function CategoryForm({
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
         </select>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="image">Background Image URL</Label>
+        <div className="flex items-center gap-2">
+          <Input id="image" {...register("image")} placeholder="Paste a URL or upload below" />
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={onFileSelected}
+          />
+          <Button type="button" variant="outline" size="sm" disabled={uploading} onClick={() => fileInputRef.current?.click()}>
+            {uploading ? "Uploading…" : "Upload"}
+          </Button>
+        </div>
+        {image ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={image} alt="Category background preview" className="h-24 w-full rounded border object-cover" />
+        ) : null}
       </div>
       <Button type="submit" disabled={loading}>{loading ? "Saving..." : "Save"}</Button>
     </form>

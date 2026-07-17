@@ -18,10 +18,19 @@ export default async function CategoriesPage() {
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {categories.map((c) => (
           <Link key={c.id} href={`/products?category=${c.slug}`}>
-            <Card className="transition hover:shadow-md">
-              <CardContent className="p-6">
-                <h3 className="text-lg font-semibold">{c.name}</h3>
-                <p className="mt-1 text-sm text-muted-foreground">{c._count.products} products</p>
+            <Card className="group relative overflow-hidden transition hover:shadow-md">
+              {c.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={c.image}
+                  alt={c.name}
+                  className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                />
+              ) : null}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-black/20" />
+              <CardContent className="relative p-6">
+                <h3 className="text-lg font-semibold text-white">{c.name}</h3>
+                <p className="mt-1 text-sm text-white/80">{c._count.products} products</p>
               </CardContent>
             </Card>
           </Link>
